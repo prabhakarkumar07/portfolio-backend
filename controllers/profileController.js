@@ -1,7 +1,11 @@
 const Profile = require('../models/Profile');
+const fs = require('fs');
+const path = require('path');
 const {
   uploadBufferToCloudinary,
   deleteFromCloudinary,
+  getSignedAssetUrl,
+  getPrivateDownloadUrl,
 } = require('../config/cloudinary');
 
 const getOrCreateProfile = async () => {
@@ -195,6 +199,8 @@ const uploadProfileFiles = async (req, res, next) => {
         publicId: uploadedImage.public_id,
         originalName: profileImage.originalname,
         resourceType: uploadedImage.resource_type,
+        accessMode: uploadedImage.access_mode || '',
+        deliveryType: uploadedImage.type || '',
       };
     }
 
@@ -203,19 +209,32 @@ const uploadProfileFiles = async (req, res, next) => {
         await deleteFromCloudinary(profile.resume.publicId, 'raw');
       }
 
-      const uploadedResume = await uploadBufferToCloudinary(resume, {
-      folder: 'portfolio/resume',
-      resource_type: 'raw',
-      public_id: `resume-${Date.now()}.pdf`,
-      
-    });
-    console.log(uploadedResume);
+      if (profile.resume?.localPath) {
+        try {
+          await fs.promises.unlink(profile.resume.localPath);
+        } catch (error) {
+          if (error.code !== 'ENOENT') {
+            throw error;
+          }
+        }
+      }
+
+      const uploadsDir = path.join(__dirname, '..', 'uploads', 'resume');
+      await fs.promises.mkdir(uploadsDir, { recursive: true });
+      const filename = `resume-${Date.now()}.pdf`;
+      const filePath = path.join(uploadsDir, filename);
+
+      await fs.promises.writeFile(filePath, resume.buffer);
 
       profile.resume = {
-        url: uploadedResume.secure_url,
-        publicId: uploadedResume.public_id,
+        url: '',
+        publicId: '',
         originalName: resume.originalname,
-        resourceType: uploadedResume.resource_type,
+        resourceType: 'raw',
+        accessMode: '',
+        deliveryType: '',
+        localPath: filePath,
+        localFilename: filename,
       };
     }
     await profile.save();
@@ -252,11 +271,26 @@ const deleteProfileAsset = async (req, res, next) => {
     }
 
     await deleteFromCloudinary(asset.publicId, type === 'resume' ? 'raw' : 'image');
+
+    if (asset.localPath) {
+      try {
+        await fs.promises.unlink(asset.localPath);
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+
     profile[type] = {
       url: '',
       publicId: '',
       originalName: '',
       resourceType: '',
+      accessMode: '',
+      deliveryType: '',
+      localPath: '',
+      localFilename: '',
     };
 
     await profile.save();
@@ -271,9 +305,31 @@ const deleteProfileAsset = async (req, res, next) => {
   }
 };
 
+const getResumeDownload = async (req, res, next) => {
+  try {
+    const profile = await getOrCreateProfile();
+    const resume = profile.resume;
+
+    if (!resume?.localPath) {
+      return res.status(404).json({
+        success: false,
+        message: 'Resume not found',
+      });
+    }
+
+    const absolutePath = path.resolve(resume.localPath);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${resume.localFilename || 'resume.pdf'}"`);
+    res.sendFile(absolutePath);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   uploadProfileFiles,
   deleteProfileAsset,
+  getResumeDownload,
 };

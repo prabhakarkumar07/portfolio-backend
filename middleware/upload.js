@@ -31,6 +31,23 @@ const uploadProfileAssets = multer({
   { name: 'resume', maxCount: 1 },
 ]);
 
+const blogImageFilter = (req, file, callback) => {
+  if (!file.mimetype.startsWith('image/')) {
+    callback(new Error('Image file required.'));
+    return;
+  }
+  callback(null, true);
+};
+
+const uploadBlogImage = multer({
+  storage,
+  fileFilter: blogImageFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+}).single('image');
+
 module.exports = {
   uploadProfileAssets,
+  uploadBlogImage,
 };

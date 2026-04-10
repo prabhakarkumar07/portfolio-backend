@@ -22,6 +22,26 @@ const assetSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    accessMode: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    deliveryType: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    localPath: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    localFilename: {
+      type: String,
+      trim: true,
+      default: '',
+    },
   },
   { _id: false },
 );

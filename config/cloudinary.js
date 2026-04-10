@@ -1,4 +1,5 @@
 const { v2: cloudinary } = require('cloudinary');
+const path = require('path');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -53,7 +54,46 @@ const deleteFromCloudinary = async (publicId, resourceType = 'image') => {
   await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
 };
 
+const getSignedAssetUrl = (publicId, resourceType = 'raw', options = {}) => {
+  if (!publicId) {
+    return '';
+  }
+
+  ensureCloudinaryConfig();
+  const expiresAt = options.expiresAt || Math.floor(Date.now() / 1000) + 60 * 60;
+  const deliveryType = options.deliveryType || (resourceType === 'raw' ? 'authenticated' : 'upload');
+
+  return cloudinary.url(publicId, {
+    resource_type: resourceType,
+    type: deliveryType,
+    secure: true,
+    sign_url: true,
+    expires_at: expiresAt,
+  });
+};
+
+const getPrivateDownloadUrl = (publicId, options = {}) => {
+  if (!publicId) {
+    return '';
+  }
+
+  ensureCloudinaryConfig();
+  const expiresAt = options.expiresAt || Math.floor(Date.now() / 1000) + 60 * 60;
+  const parsed = path.parse(publicId);
+  const safePublicId = parsed.ext ? path.join(parsed.dir, parsed.name).replace(/\\/g, '/') : publicId;
+  const format = parsed.ext ? parsed.ext.replace('.', '') : (options.format || 'pdf');
+
+  return cloudinary.utils.private_download_url(safePublicId, format, {
+    resource_type: 'raw',
+    type: 'authenticated',
+    expires_at: expiresAt,
+    secure: true,
+  });
+};
+
 module.exports = {
   uploadBufferToCloudinary,
   deleteFromCloudinary,
+  getSignedAssetUrl,
+  getPrivateDownloadUrl,
 };

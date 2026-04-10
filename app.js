@@ -9,6 +9,7 @@ const { env, allowedOrigins, isProduction } = require('./config/env');
 const swaggerSpec = require('./config/swagger');
 const profileRoutes = require('./routes/profileRoutes');
 const projectRoutes = require('./routes/projectRoutes');
+const blogRoutes = require('./routes/blogRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -88,6 +89,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/profile', profileRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/blogs', blogRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/admin', authRoutes);
 app.use('/api/admin', adminRoutes);

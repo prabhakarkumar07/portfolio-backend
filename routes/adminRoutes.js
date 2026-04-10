@@ -17,9 +17,17 @@ const {
   uploadProfileFiles,
   deleteProfileAsset,
 } = require('../controllers/profileController');
+const {
+  getAllBlogsAdmin,
+  getBlogById,
+  createBlog,
+  updateBlog,
+  deleteBlog,
+  uploadBlogImageHandler,
+} = require('../controllers/blogController');
 const { protect } = require('../middleware/auth');
-const { projectValidation } = require('../middleware/validate');
-const { uploadProfileAssets } = require('../middleware/upload');
+const { projectValidation, blogValidation } = require('../middleware/validate');
+const { uploadProfileAssets, uploadBlogImage } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -43,5 +51,15 @@ router
   .get(getProjectById)
   .put(projectValidation, updateProject)
   .delete(deleteProject);
+
+router.get('/blogs', getAllBlogsAdmin);
+router.post('/blogs', blogValidation, createBlog);
+router.post('/blogs/image', uploadBlogImage, uploadBlogImageHandler);
+
+router
+  .route('/blogs/:id')
+  .get(getBlogById)
+  .put(blogValidation, updateBlog)
+  .delete(deleteBlog);
 
 module.exports = router;

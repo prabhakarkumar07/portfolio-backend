@@ -77,6 +77,27 @@ const projectValidation = [
   validate
 ];
 
+const blogValidation = [
+  body('title')
+    .trim()
+    .notEmpty().withMessage('Title is required')
+    .isLength({ max: 140 }).withMessage('Title cannot exceed 140 characters'),
+
+  body('excerpt')
+    .optional({ nullable: true, checkFalsy: true })
+    .isLength({ max: 280 }).withMessage('Excerpt cannot exceed 280 characters'),
+
+  body('content')
+    .trim()
+    .notEmpty().withMessage('Content is required'),
+
+  body('tags')
+    .optional()
+    .isArray().withMessage('Tags must be an array'),
+
+  validate
+];
+
 // Validation rules for login
 const loginValidation = [
   body('email')
@@ -90,4 +111,4 @@ const loginValidation = [
   validate
 ];
 
-module.exports = { contactValidation, projectValidation, loginValidation };
+module.exports = { contactValidation, projectValidation, blogValidation, loginValidation };

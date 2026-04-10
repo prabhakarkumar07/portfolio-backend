@@ -1,9 +1,10 @@
 const express = require('express');
 
-const { getProfile } = require('../controllers/profileController');
+const { getProfile, getResumeDownload } = require('../controllers/profileController');
 
 const router = express.Router();
 
 router.get('/', getProfile);
+router.get('/resume', getResumeDownload);
 
 module.exports = router;
