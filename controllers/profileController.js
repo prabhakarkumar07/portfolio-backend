@@ -37,6 +37,28 @@ const updateProfile = async (req, res, next) => {
       location,
       email,
       careerJourney,
+      siteTitle,
+      logoLetter,
+      footerTagline,
+      availabilityBadge,
+      availabilityStatus,
+      availabilityDetails,
+      heroDescription,
+      homeCtaTitle,
+      homeCtaDescription,
+      homePrimaryCtaText,
+      homeSecondaryCtaText,
+      contactIntro,
+      githubUrl,
+      linkedinUrl,
+      twitterUrl,
+      projectsPageTag,
+      projectsPageTitle,
+      projectsPageSubtitle,
+      stats,
+      skillCategories,
+      experiences,
+      resumeHighlights,
     } = req.body;
 
     if (fullName !== undefined) profile.fullName = fullName;
@@ -44,6 +66,81 @@ const updateProfile = async (req, res, next) => {
     if (bio !== undefined) profile.bio = bio;
     if (location !== undefined) profile.location = location;
     if (email !== undefined) profile.email = email;
+    if (siteTitle !== undefined) profile.siteTitle = siteTitle;
+    if (logoLetter !== undefined) profile.logoLetter = logoLetter;
+    if (footerTagline !== undefined) profile.footerTagline = footerTagline;
+    if (availabilityBadge !== undefined) profile.availabilityBadge = availabilityBadge;
+    if (availabilityStatus !== undefined) profile.availabilityStatus = availabilityStatus;
+    if (availabilityDetails !== undefined) profile.availabilityDetails = availabilityDetails;
+    if (heroDescription !== undefined) profile.heroDescription = heroDescription;
+    if (homeCtaTitle !== undefined) profile.homeCtaTitle = homeCtaTitle;
+    if (homeCtaDescription !== undefined) profile.homeCtaDescription = homeCtaDescription;
+    if (homePrimaryCtaText !== undefined) profile.homePrimaryCtaText = homePrimaryCtaText;
+    if (homeSecondaryCtaText !== undefined) profile.homeSecondaryCtaText = homeSecondaryCtaText;
+    if (contactIntro !== undefined) profile.contactIntro = contactIntro;
+    if (githubUrl !== undefined) profile.githubUrl = githubUrl;
+    if (linkedinUrl !== undefined) profile.linkedinUrl = linkedinUrl;
+    if (twitterUrl !== undefined) profile.twitterUrl = twitterUrl;
+    if (projectsPageTag !== undefined) profile.projectsPageTag = projectsPageTag;
+    if (projectsPageTitle !== undefined) profile.projectsPageTitle = projectsPageTitle;
+    if (projectsPageSubtitle !== undefined) profile.projectsPageSubtitle = projectsPageSubtitle;
+    if (stats !== undefined) {
+      profile.stats = Array.isArray(stats)
+        ? stats
+            .filter((item) => item && (item.label || item.value))
+            .map((item) => ({
+              label: item.label || '',
+              value: item.value || '',
+            }))
+        : [];
+    }
+    if (skillCategories !== undefined) {
+      profile.skillCategories = Array.isArray(skillCategories)
+        ? skillCategories
+            .filter((item) => item && item.name)
+            .map((item) => ({
+              name: item.name || '',
+              icon: item.icon || '',
+              skills: Array.isArray(item.skills)
+                ? item.skills
+                    .filter((skill) => skill && skill.name)
+                    .map((skill) => ({
+                      name: skill.name || '',
+                      level: Number(skill.level || 0),
+                    }))
+                : [],
+            }))
+        : [];
+    }
+    if (experiences !== undefined) {
+      profile.experiences = Array.isArray(experiences)
+        ? experiences
+            .filter((item) => item && (item.title || item.company))
+            .map((item) => ({
+              title: item.title || '',
+              company: item.company || '',
+              period: item.period || '',
+              description: item.description || '',
+              tech: Array.isArray(item.tech)
+                ? item.tech.filter(Boolean)
+                : typeof item.tech === 'string'
+                  ? item.tech.split(',').map((part) => part.trim()).filter(Boolean)
+                  : [],
+            }))
+        : [];
+    }
+    if (resumeHighlights !== undefined) {
+      profile.resumeHighlights = Array.isArray(resumeHighlights)
+        ? resumeHighlights
+            .filter((item) => item && (item.label || item.value))
+            .map((item) => ({
+              icon: item.icon || '',
+              label: item.label || '',
+              value: item.value || '',
+              sub: item.sub || '',
+            }))
+        : [];
+    }
     if (careerJourney !== undefined) {
       profile.careerJourney = Array.isArray(careerJourney)
         ? careerJourney
@@ -107,10 +204,12 @@ const uploadProfileFiles = async (req, res, next) => {
       }
 
       const uploadedResume = await uploadBufferToCloudinary(resume, {
-        folder: 'portfolio/resume',
-        resource_type: 'raw',
-        public_id: `resume-${Date.now()}`,
-      });
+      folder: 'portfolio/resume',
+      resource_type: 'raw',
+      public_id: `resume-${Date.now()}.pdf`,
+      
+    });
+    console.log(uploadedResume);
 
       profile.resume = {
         url: uploadedResume.secure_url,
@@ -119,7 +218,6 @@ const uploadProfileFiles = async (req, res, next) => {
         resourceType: uploadedResume.resource_type,
       };
     }
-
     await profile.save();
 
     res.json({
@@ -132,8 +230,50 @@ const uploadProfileFiles = async (req, res, next) => {
   }
 };
 
+const deleteProfileAsset = async (req, res, next) => {
+  try {
+    const profile = await getOrCreateProfile();
+    const { type } = req.params;
+
+    if (type !== 'profileImage' && type !== 'resume') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid asset type',
+      });
+    }
+
+    const asset = profile[type];
+
+    if (!asset?.publicId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Asset not found',
+      });
+    }
+
+    await deleteFromCloudinary(asset.publicId, type === 'resume' ? 'raw' : 'image');
+    profile[type] = {
+      url: '',
+      publicId: '',
+      originalName: '',
+      resourceType: '',
+    };
+
+    await profile.save();
+
+    res.json({
+      success: true,
+      message: `${type} deleted successfully`,
+      data: profile,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   uploadProfileFiles,
+  deleteProfileAsset,
 };

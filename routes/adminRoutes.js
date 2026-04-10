@@ -15,6 +15,7 @@ const {
 const {
   updateProfile,
   uploadProfileFiles,
+  deleteProfileAsset,
 } = require('../controllers/profileController');
 const { protect } = require('../middleware/auth');
 const { projectValidation } = require('../middleware/validate');
@@ -30,6 +31,7 @@ router.delete('/messages/:id', deleteMessage);
 
 router.put('/profile', updateProfile);
 router.post('/profile/assets', uploadProfileAssets, uploadProfileFiles);
+router.delete('/profile/assets/:type', deleteProfileAsset);
 
 router
   .route('/projects')
