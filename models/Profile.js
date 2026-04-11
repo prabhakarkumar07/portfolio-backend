@@ -32,16 +32,6 @@ const assetSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    localPath: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    localFilename: {
-      type: String,
-      trim: true,
-      default: '',
-    },
   },
   { _id: false },
 );

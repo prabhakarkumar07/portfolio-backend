@@ -3,22 +3,12 @@
  */
 
 const Contact = require('../models/Contact');
-const nodemailer = require('nodemailer');
+const { MailerSend, EmailParams, Sender, Recipient } = require('mailersend');
 
-// ─── Email Transporter Setup ─────────────────────────────────────────────────
-const createTransporter = () => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return null;
-
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: process.env.EMAIL_PORT || 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
-};
+// ─── MailerSend Instance ──────────────────────────────────────────────────────
+const mailerSend = new MailerSend({
+  apiKey: process.env.MAILERSEND_API_KEY,
+});
 
 /**
  * @desc    Submit a contact message
@@ -38,33 +28,57 @@ const submitContact = async (req, res, next) => {
       ipAddress: req.ip
     });
 
-    // ── Optional: Send email notification ─────────────────────────────────────
-    const transporter = createTransporter();
-    if (transporter) {
+    // ── Optional: Send email notification via MailerSend ──────────────────────
+    if (process.env.MAILERSEND_API_KEY) {
       try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_FROM,
-          to: process.env.EMAIL_USER,
-          subject: `📬 New Contact: ${subject}`,
-          html: `
+        const sentFrom = new Sender(
+          process.env.EMAIL_FROM,
+          process.env.EMAIL_FROM_NAME || 'Portfolio Contact'
+        );
+
+        const recipients = [
+          new Recipient(process.env.EMAIL_TO, 'Prabhakar Kumar')
+        ];
+
+        const emailParams = new EmailParams()
+          .setFrom(sentFrom)
+          .setTo(recipients)
+          .setReplyTo(new Sender(email, name)) // Reply goes directly to the contact
+          .setSubject(`📬 New Contact: ${subject}`)
+          .setHtml(`
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2 style="color: #6366f1;">New Portfolio Contact</h2>
               <table style="width: 100%; border-collapse: collapse;">
-                <tr><td style="padding: 8px; font-weight: bold;">Name:</td><td style="padding: 8px;">${name}</td></tr>
-                <tr><td style="padding: 8px; font-weight: bold;">Email:</td><td style="padding: 8px;">${email}</td></tr>
-                <tr><td style="padding: 8px; font-weight: bold;">Subject:</td><td style="padding: 8px;">${subject}</td></tr>
+                <tr>
+                  <td style="padding: 8px; font-weight: bold;">Name:</td>
+                  <td style="padding: 8px;">${name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; font-weight: bold;">Email:</td>
+                  <td style="padding: 8px;">${email}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; font-weight: bold;">Subject:</td>
+                  <td style="padding: 8px;">${subject}</td>
+                </tr>
               </table>
               <div style="margin-top: 16px; padding: 16px; background: #f3f4f6; border-radius: 8px;">
                 <p style="font-weight: bold;">Message:</p>
                 <p>${message.replace(/\n/g, '<br>')}</p>
               </div>
-              <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">Received at: ${new Date().toLocaleString()}</p>
+              <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">
+                Received at: ${new Date().toLocaleString()}
+              </p>
             </div>
-          `
-        });
+          `)
+          .setText(
+            `New message from ${name} (${email})\n\nSubject: ${subject}\n\nMessage:\n${message}\n\nReceived at: ${new Date().toLocaleString()}`
+          );
+
+        await mailerSend.email.send(emailParams);
       } catch (emailErr) {
         // Don't fail the request if email fails — just log it
-        console.warn('⚠️  Email notification failed:', emailErr.message);
+        console.warn('⚠️  MailerSend notification failed:', emailErr.message);
       }
     }
 

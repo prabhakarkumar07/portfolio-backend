@@ -1,5 +1,5 @@
 const { v2: cloudinary } = require('cloudinary');
-const path = require('path');
+const streamifier = require('streamifier');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -23,49 +23,43 @@ const uploadBufferToCloudinary = (file, options = {}) =>
   new Promise((resolve, reject) => {
     ensureCloudinaryConfig();
 
-    const base64 = file.buffer.toString('base64');
-    const dataUri = `data:${file.mimetype};base64,${base64}`;
+    const uploadOptions = {
+      folder: options.folder || 'portfolio',
+      overwrite: true,
+      resource_type: options.resource_type || 'auto',
+      ...options,
+      type: 'upload',
+      access_mode: 'public',
+    };
 
-    cloudinary.uploader.upload(
-      dataUri,
-      {
-        folder: 'portfolio',
-        overwrite: true,
-        resource_type: 'auto',
-        ...options,
-      },
+    const stream = cloudinary.uploader.upload_stream(
+      uploadOptions,
       (error, result) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
+        if (error) return reject(error);
         resolve(result);
       },
     );
+
+    streamifier.createReadStream(file.buffer).pipe(stream);
   });
 
 const deleteFromCloudinary = async (publicId, resourceType = 'image') => {
-  if (!publicId) {
-    return;
-  }
-
+  if (!publicId) return;
   ensureCloudinaryConfig();
-  await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+  await cloudinary.uploader.destroy(publicId, {
+    resource_type: resourceType,
+    type: 'upload',
+  });
 };
 
 const getSignedAssetUrl = (publicId, resourceType = 'raw', options = {}) => {
-  if (!publicId) {
-    return '';
-  }
-
+  if (!publicId) return '';
   ensureCloudinaryConfig();
   const expiresAt = options.expiresAt || Math.floor(Date.now() / 1000) + 60 * 60;
-  const deliveryType = options.deliveryType || (resourceType === 'raw' ? 'authenticated' : 'upload');
 
   return cloudinary.url(publicId, {
     resource_type: resourceType,
-    type: deliveryType,
+    type: 'upload',
     secure: true,
     sign_url: true,
     expires_at: expiresAt,
@@ -73,19 +67,13 @@ const getSignedAssetUrl = (publicId, resourceType = 'raw', options = {}) => {
 };
 
 const getPrivateDownloadUrl = (publicId, options = {}) => {
-  if (!publicId) {
-    return '';
-  }
-
+  if (!publicId) return '';
   ensureCloudinaryConfig();
   const expiresAt = options.expiresAt || Math.floor(Date.now() / 1000) + 60 * 60;
-  const parsed = path.parse(publicId);
-  const safePublicId = parsed.ext ? path.join(parsed.dir, parsed.name).replace(/\\/g, '/') : publicId;
-  const format = parsed.ext ? parsed.ext.replace('.', '') : (options.format || 'pdf');
 
-  return cloudinary.utils.private_download_url(safePublicId, format, {
+  return cloudinary.utils.private_download_url(publicId, 'pdf', {
     resource_type: 'raw',
-    type: 'authenticated',
+    type: 'upload',
     expires_at: expiresAt,
     secure: true,
   });
