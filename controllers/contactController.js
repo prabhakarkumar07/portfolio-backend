@@ -28,59 +28,50 @@ const submitContact = async (req, res, next) => {
       ipAddress: req.ip
     });
 
-    // ── Optional: Send email notification via MailerSend ──────────────────────
-    if (process.env.MAILERSEND_API_KEY) {
-      try {
-        const sentFrom = new Sender(
-          process.env.EMAIL_FROM,
-          process.env.EMAIL_FROM_NAME || 'Portfolio Contact'
-        );
+    // ── Send email via MailerSend ─────────────────────────────────────────────
+    const sentFrom = new Sender(process.env.EMAIL_FROM, process.env.EMAIL_FROM_NAME);
 
-        const recipients = [
-          new Recipient(process.env.EMAIL_TO, 'Prabhakar Kumar')
-        ];
+    const recipients = [
+      new Recipient(process.env.EMAIL_TO, 'Prabhakar Kumar')
+    ];
 
-        const emailParams = new EmailParams()
-          .setFrom(sentFrom)
-          .setTo(recipients)
-          .setReplyTo(new Sender(email, name)) // Reply goes directly to the contact
-          .setSubject(`📬 New Contact: ${subject}`)
-          .setHtml(`
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #6366f1;">New Portfolio Contact</h2>
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 8px; font-weight: bold;">Name:</td>
-                  <td style="padding: 8px;">${name}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; font-weight: bold;">Email:</td>
-                  <td style="padding: 8px;">${email}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; font-weight: bold;">Subject:</td>
-                  <td style="padding: 8px;">${subject}</td>
-                </tr>
-              </table>
-              <div style="margin-top: 16px; padding: 16px; background: #f3f4f6; border-radius: 8px;">
-                <p style="font-weight: bold;">Message:</p>
-                <p>${message.replace(/\n/g, '<br>')}</p>
-              </div>
-              <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">
-                Received at: ${new Date().toLocaleString()}
-              </p>
-            </div>
-          `)
-          .setText(
-            `New message from ${name} (${email})\n\nSubject: ${subject}\n\nMessage:\n${message}\n\nReceived at: ${new Date().toLocaleString()}`
-          );
+    const emailParams = new EmailParams()
+      .setFrom(sentFrom)
+      .setTo(recipients)
+      .setReplyTo(new Sender(email, name))
+      .setSubject(`📬 New Contact: ${subject}`)
+      .setHtml(`
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #6366f1;">New Portfolio Contact</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Name:</td>
+              <td style="padding: 8px;">${name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Email:</td>
+              <td style="padding: 8px;">${email}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Subject:</td>
+              <td style="padding: 8px;">${subject}</td>
+            </tr>
+          </table>
+          <div style="margin-top: 16px; padding: 16px; background: #f3f4f6; border-radius: 8px;">
+            <p style="font-weight: bold;">Message:</p>
+            <p>${message.replace(/\n/g, '<br>')}</p>
+          </div>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">
+            Received at: ${new Date().toLocaleString()}
+          </p>
+        </div>
+      `)
+      .setText(
+        `New message from ${name} (${email})\n\nSubject: ${subject}\n\nMessage:\n${message}\n\nReceived at: ${new Date().toLocaleString()}`
+      );
 
-        await mailerSend.email.send(emailParams);
-      } catch (emailErr) {
-        // Don't fail the request if email fails — just log it
-        console.warn('⚠️  MailerSend notification failed:', emailErr.message);
-      }
-    }
+    await mailerSend.email.send(emailParams);
+    console.log('✅ Email sent successfully to', process.env.EMAIL_TO);
 
     res.status(201).json({
       success: true,
