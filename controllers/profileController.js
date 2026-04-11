@@ -223,9 +223,8 @@ const uploadProfileFiles = async (req, res, next) => {
       }
 
       const uploadedResume = await uploadBufferToCloudinary(resume, {
-        folder: "portfolio/resume",
         resource_type: "raw",
-        public_id: `resume-${Date.now()}`,
+        public_id: `resume-${Date.now()}`, // unique name
         format: "pdf",
         use_filename: false,
       });
@@ -273,7 +272,7 @@ const deleteProfileAsset = async (req, res, next) => {
       });
     }
 
-    await deleteFromCloudinary(asset.publicId, asset.resourceType || 'image');
+    await deleteFromCloudinary(asset.publicId, asset.resourceType || "image");
 
     profile[type] = {
       url: "",
