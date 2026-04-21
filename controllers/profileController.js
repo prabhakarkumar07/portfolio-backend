@@ -23,8 +23,20 @@ const serializeProfile = (profile, req) => {
     profileObject.resume.url = buildResumeUrl(req);
   }
 
+  if (profileObject.resumeAnalytics) {
+    delete profileObject.resumeAnalytics;
+  }
+
   return profileObject;
 };
+
+const serializeResumeAnalytics = (profile) => ({
+  totalDownloads: profile.resumeAnalytics?.totalDownloads || 0,
+  lastDownloadedAt: profile.resumeAnalytics?.lastDownloadedAt || null,
+  recentViews: Array.isArray(profile.resumeAnalytics?.recentViews)
+    ? profile.resumeAnalytics.recentViews
+    : [],
+});
 
 const getOrCreateProfile = async () => {
   let profile = await Profile.findOne().sort({ createdAt: 1 });
@@ -203,6 +215,21 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
+const getProfileAnalytics = async (req, res, next) => {
+  try {
+    const profile = await getOrCreateProfile();
+
+    res.json({
+      success: true,
+      data: {
+        resumeAnalytics: serializeResumeAnalytics(profile),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const uploadProfileFiles = async (req, res, next) => {
   try {
     const profile = await getOrCreateProfile();
@@ -343,6 +370,25 @@ const getResumeDownload = async (req, res, next) => {
     // Public asset — redirect directly to Cloudinary URL
     const buffer = Buffer.from(resume.data, "base64");
     const safeFileName = (resume.originalName || "resume.pdf").replace(/"/g, "");
+    const source = String(req.query.source || '').trim().slice(0, 80);
+    const referrer = String(req.get('referer') || '').trim().slice(0, 300);
+
+    profile.resumeAnalytics = {
+      totalDownloads: (profile.resumeAnalytics?.totalDownloads || 0) + 1,
+      lastDownloadedAt: new Date(),
+      recentViews: [
+        {
+          source,
+          referrer,
+          downloadedAt: new Date(),
+        },
+        ...(Array.isArray(profile.resumeAnalytics?.recentViews)
+          ? profile.resumeAnalytics.recentViews
+          : []),
+      ].slice(0, 10),
+    };
+
+    await profile.save();
 
     res.setHeader("Content-Type", resume.mimeType || "application/pdf");
     res.setHeader("Content-Length", buffer.length);
@@ -360,6 +406,7 @@ const getResumeDownload = async (req, res, next) => {
 module.exports = {
   getProfile,
   updateProfile,
+  getProfileAnalytics,
   uploadProfileFiles,
   deleteProfileAsset,
   getResumeDownload,

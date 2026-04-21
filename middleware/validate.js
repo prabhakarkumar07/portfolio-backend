@@ -50,6 +50,12 @@ const projectValidation = [
     .notEmpty().withMessage('Title is required')
     .isLength({ max: 100 }).withMessage('Title cannot exceed 100 characters'),
 
+  body('slug')
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .isLength({ max: 120 }).withMessage('Slug cannot exceed 120 characters')
+    .matches(/^[a-z0-9-]+$/).withMessage('Slug can only contain lowercase letters, numbers, and hyphens'),
+
   body('shortDescription')
     .trim()
     .notEmpty().withMessage('Short description is required')
@@ -73,6 +79,18 @@ const projectValidation = [
   body('liveUrl')
     .optional({ nullable: true, checkFalsy: true })
     .isURL().withMessage('Please provide a valid live URL'),
+
+  body('gallery')
+    .optional()
+    .isArray().withMessage('Gallery must be an array'),
+
+  body('keyFeatures')
+    .optional()
+    .isArray().withMessage('Key features must be an array'),
+
+  body('metrics')
+    .optional()
+    .isArray().withMessage('Metrics must be an array'),
 
   validate
 ];

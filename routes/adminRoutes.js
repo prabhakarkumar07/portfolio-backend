@@ -14,6 +14,7 @@ const {
 } = require('../controllers/contactController');
 const {
   updateProfile,
+  getProfileAnalytics,
   uploadProfileFiles,
   deleteProfileAsset,
 } = require('../controllers/profileController');
@@ -38,6 +39,7 @@ router.patch('/messages/:id/read', markAsRead);
 router.delete('/messages/:id', deleteMessage);
 
 router.put('/profile', updateProfile);
+router.get('/profile/analytics', getProfileAnalytics);
 router.post('/profile/assets', uploadProfileAssets, uploadProfileFiles);
 router.delete('/profile/assets/:type', deleteProfileAsset);
 

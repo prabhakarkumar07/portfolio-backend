@@ -4,6 +4,22 @@
 
 const mongoose = require('mongoose');
 
+const metricSchema = new mongoose.Schema(
+  {
+    label: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    value: {
+      type: String,
+      trim: true,
+      default: ''
+    }
+  },
+  { _id: false }
+);
+
 const projectSchema = new mongoose.Schema(
   {
     title: {
@@ -11,6 +27,13 @@ const projectSchema = new mongoose.Schema(
       required: [true, 'Project title is required'],
       trim: true,
       maxlength: [100, 'Title cannot exceed 100 characters']
+    },
+    slug: {
+      type: String,
+      required: [true, 'Project slug is required'],
+      unique: true,
+      trim: true,
+      lowercase: true
     },
     shortDescription: {
       type: String,
@@ -54,6 +77,43 @@ const projectSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: ''
+    },
+    gallery: {
+      type: [String],
+      default: []
+    },
+    role: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    duration: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    problem: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    solution: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    impact: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    keyFeatures: {
+      type: [String],
+      default: []
+    },
+    metrics: {
+      type: [metricSchema],
+      default: []
     },
     featured: {
       type: Boolean,

@@ -47,13 +47,13 @@ router.get('/', getAllProjects);
 
 /**
  * @swagger
- * /projects/{id}:
+ * /projects/{slugOrId}:
  *   get:
- *     summary: Get a project by ID
+ *     summary: Get a project by slug or ID
  *     tags: [Projects]
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: slugOrId
  *         required: true
  *         schema:
  *           type: string
@@ -63,6 +63,6 @@ router.get('/', getAllProjects);
  *       404:
  *         description: Project not found
  */
-router.get('/:id', getProjectById);
+router.get('/:slugOrId', getProjectById);
 
 module.exports = router;

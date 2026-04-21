@@ -5,6 +5,34 @@
 
 const Project = require('../models/Project');
 
+const slugify = (value = '') =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120);
+
+const normalizeProjectPayload = (payload = {}) => {
+  const nextPayload = { ...payload };
+  nextPayload.slug = slugify(payload.slug || payload.title || '');
+  nextPayload.gallery = Array.isArray(payload.gallery)
+    ? payload.gallery.filter(Boolean)
+    : [];
+  nextPayload.keyFeatures = Array.isArray(payload.keyFeatures)
+    ? payload.keyFeatures.filter(Boolean)
+    : [];
+  nextPayload.metrics = Array.isArray(payload.metrics)
+    ? payload.metrics
+        .filter((item) => item && (item.label || item.value))
+        .map((item) => ({
+          label: item.label || '',
+          value: item.value || '',
+        }))
+    : [];
+  return nextPayload;
+};
+
 // ─── Public Routes ───────────────────────────────────────────────────────────
 
 /**
@@ -46,13 +74,16 @@ const getAllProjects = async (req, res, next) => {
 };
 
 /**
- * @desc    Get a single project by ID
- * @route   GET /api/projects/:id
+ * @desc    Get a single project by slug or ID
+ * @route   GET /api/projects/:slugOrId
  * @access  Public
  */
 const getProjectById = async (req, res, next) => {
   try {
-    const project = await Project.findById(req.params.id);
+    const { slugOrId } = req.params;
+    const project = slugOrId.match(/^[0-9a-fA-F]{24}$/)
+      ? await Project.findById(slugOrId)
+      : await Project.findOne({ slug: slugOrId.toLowerCase() });
 
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
@@ -73,7 +104,7 @@ const getProjectById = async (req, res, next) => {
  */
 const createProject = async (req, res, next) => {
   try {
-    const project = await Project.create(req.body);
+    const project = await Project.create(normalizeProjectPayload(req.body));
 
     res.status(201).json({
       success: true,
@@ -94,7 +125,7 @@ const updateProject = async (req, res, next) => {
   try {
     const project = await Project.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      normalizeProjectPayload(req.body),
       {
         new: true,           // Return updated document
         runValidators: true  // Run schema validations on update

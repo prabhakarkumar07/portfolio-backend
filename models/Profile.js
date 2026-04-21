@@ -189,6 +189,26 @@ const resumeHighlightSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const resumeViewSchema = new mongoose.Schema(
+  {
+    source: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    referrer: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    downloadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false },
+);
+
 const profileSchema = new mongoose.Schema(
   {
     fullName: {
@@ -334,6 +354,19 @@ const profileSchema = new mongoose.Schema(
     resumeHighlights: {
       type: [resumeHighlightSchema],
       default: [],
+    },
+    resumeAnalytics: {
+      totalDownloads: {
+        type: Number,
+        default: 0,
+      },
+      lastDownloadedAt: {
+        type: Date,
+      },
+      recentViews: {
+        type: [resumeViewSchema],
+        default: [],
+      },
     },
   },
   {
