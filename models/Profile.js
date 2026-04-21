@@ -32,6 +32,19 @@ const assetSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    mimeType: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    size: {
+      type: Number,
+      default: 0,
+    },
+    data: {
+      type: String,
+      default: '',
+    },
   },
   { _id: false },
 );

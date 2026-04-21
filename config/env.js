@@ -34,8 +34,37 @@ const allowedOrigins = env.CORS_ORIGIN
 
 const isProduction = env.NODE_ENV === 'production';
 
+const getMissingEnvVars = (keys = []) =>
+  keys.filter((key) => {
+    const value = env[key];
+
+    if (typeof value === 'number') {
+      return Number.isNaN(value);
+    }
+
+    return !value;
+  });
+
+const validateEnv = (keys = [], options = {}) => {
+  const missing = getMissingEnvVars(keys);
+
+  if (missing.length === 0) {
+    return;
+  }
+
+  const message = `Missing required environment variables: ${missing.join(', ')}`;
+
+  if (options.throwOnMissing !== false) {
+    throw new Error(message);
+  }
+
+  console.warn(message);
+};
+
 module.exports = {
   env,
   allowedOrigins,
   isProduction,
+  getMissingEnvVars,
+  validateEnv,
 };

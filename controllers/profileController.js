@@ -4,6 +4,28 @@ const {
   deleteFromCloudinary,
 } = require("../config/cloudinary");
 
+const buildResumeUrl = (req) => {
+  const protocol = req.get("x-forwarded-proto") || req.protocol;
+  return `${protocol}://${req.get("host")}/api/profile/resume`;
+};
+
+const serializeProfile = (profile, req) => {
+  const profileObject =
+    typeof profile.toObject === "function"
+      ? profile.toObject({ getters: false })
+      : { ...profile };
+
+  if (profileObject.resume?.data) {
+    delete profileObject.resume.data;
+  }
+
+  if (profileObject.resume?.originalName) {
+    profileObject.resume.url = buildResumeUrl(req);
+  }
+
+  return profileObject;
+};
+
 const getOrCreateProfile = async () => {
   let profile = await Profile.findOne().sort({ createdAt: 1 });
   if (!profile) {
@@ -15,7 +37,7 @@ const getOrCreateProfile = async () => {
 const getProfile = async (req, res, next) => {
   try {
     const profile = await getOrCreateProfile();
-    res.json({ success: true, data: profile });
+    res.json({ success: true, data: serializeProfile(profile, req) });
   } catch (error) {
     next(error);
   }
@@ -174,7 +196,7 @@ const updateProfile = async (req, res, next) => {
     res.json({
       success: true,
       message: "Profile updated successfully",
-      data: profile,
+      data: serializeProfile(profile, req),
     });
   } catch (error) {
     next(error);
@@ -215,27 +237,26 @@ const uploadProfileFiles = async (req, res, next) => {
     }
 
     if (resume) {
-      if (profile.resume?.publicId) {
+      if (
+        profile.resume?.publicId &&
+        profile.resume.resourceType !== "database"
+      ) {
         await deleteFromCloudinary(
           profile.resume.publicId,
           profile.resume.resourceType || "raw",
         );
       }
 
-      const uploadedResume = await uploadBufferToCloudinary(resume, {
-        resource_type: "raw",
-        public_id: `resume-${Date.now()}`, // unique name
-        format: "pdf",
-        use_filename: false,
-      });
-
       profile.resume = {
-        url: uploadedResume.secure_url,
-        publicId: uploadedResume.public_id,
+        url: buildResumeUrl(req),
+        publicId: "",
         originalName: resume.originalname,
-        resourceType: uploadedResume.resource_type || "raw",
-        accessMode: uploadedResume.access_mode || "public",
-        deliveryType: uploadedResume.type || "upload",
+        resourceType: "database",
+        accessMode: "private",
+        deliveryType: "inline",
+        mimeType: resume.mimetype,
+        size: resume.size,
+        data: resume.buffer.toString("base64"),
       };
     }
 
@@ -244,7 +265,7 @@ const uploadProfileFiles = async (req, res, next) => {
     res.json({
       success: true,
       message: "Profile assets uploaded successfully",
-      data: profile,
+      data: serializeProfile(profile, req),
     });
   } catch (error) {
     next(error);
@@ -265,14 +286,23 @@ const deleteProfileAsset = async (req, res, next) => {
 
     const asset = profile[type];
 
-    if (!asset?.publicId) {
+    const hasAsset =
+      type === "resume"
+        ? Boolean(asset?.data || asset?.originalName || asset?.publicId)
+        : Boolean(asset?.publicId);
+
+    if (!hasAsset) {
       return res.status(404).json({
         success: false,
         message: "Asset not found",
       });
     }
 
-    await deleteFromCloudinary(asset.publicId, asset.resourceType || "image");
+    if (type === "profileImage") {
+      await deleteFromCloudinary(asset.publicId, asset.resourceType || "image");
+    } else if (asset?.publicId && asset.resourceType !== "database") {
+      await deleteFromCloudinary(asset.publicId, asset.resourceType || "raw");
+    }
 
     profile[type] = {
       url: "",
@@ -281,6 +311,9 @@ const deleteProfileAsset = async (req, res, next) => {
       resourceType: "",
       accessMode: "",
       deliveryType: "",
+      mimeType: "",
+      size: 0,
+      data: "",
     };
 
     await profile.save();
@@ -288,7 +321,7 @@ const deleteProfileAsset = async (req, res, next) => {
     res.json({
       success: true,
       message: `${type} deleted successfully`,
-      data: profile,
+      data: serializeProfile(profile, req),
     });
   } catch (error) {
     next(error);
@@ -300,7 +333,7 @@ const getResumeDownload = async (req, res, next) => {
     const profile = await getOrCreateProfile();
     const resume = profile.resume;
 
-    if (!resume?.publicId || !resume?.url) {
+    if (!resume?.data || !resume?.originalName) {
       return res.status(404).json({
         success: false,
         message: "Resume not found",
@@ -308,7 +341,17 @@ const getResumeDownload = async (req, res, next) => {
     }
 
     // Public asset — redirect directly to Cloudinary URL
-    return res.redirect(resume.url);
+    const buffer = Buffer.from(resume.data, "base64");
+    const safeFileName = (resume.originalName || "resume.pdf").replace(/"/g, "");
+
+    res.setHeader("Content-Type", resume.mimeType || "application/pdf");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${safeFileName}"`,
+    );
+
+    return res.send(buffer);
   } catch (error) {
     next(error);
   }

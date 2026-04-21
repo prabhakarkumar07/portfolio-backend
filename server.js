@@ -2,10 +2,12 @@ require('dotenv').config();
 
 const app = require('./app');
 const connectDB = require('./config/db');
+const { validateEnv } = require('./config/env');
 
 const PORT = process.env.PORT || 5000;
 app.set('trust proxy', 1);
 const startServer = async () => {
+  validateEnv(['MONGO_URI', 'JWT_SECRET']);
   await connectDB();
 
   return app.listen(PORT, () => {
