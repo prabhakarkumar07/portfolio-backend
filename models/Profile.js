@@ -42,8 +42,8 @@ const assetSchema = new mongoose.Schema(
       default: 0,
     },
     data: {
-      type: String,
-      default: '',
+      type: Buffer,
+      default: undefined,
     },
   },
   { _id: false },

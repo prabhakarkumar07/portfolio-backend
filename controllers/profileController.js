@@ -9,6 +9,26 @@ const buildResumeUrl = (req) => {
   return `${protocol}://${req.get("host")}/api/profile/resume`;
 };
 
+const hasResumeAsset = (resume = {}) =>
+  Boolean(
+    resume?.originalName ||
+      resume?.size ||
+      (Buffer.isBuffer(resume?.data) && resume.data.length > 0) ||
+      (typeof resume?.data === "string" && resume.data.trim()),
+  );
+
+const readResumeBuffer = (resume = {}) => {
+  if (Buffer.isBuffer(resume?.data)) {
+    return resume.data;
+  }
+
+  if (typeof resume?.data === "string" && resume.data.trim()) {
+    return Buffer.from(resume.data, "base64");
+  }
+
+  return null;
+};
+
 const serializeProfile = (profile, req) => {
   const profileObject =
     typeof profile.toObject === "function"
@@ -19,7 +39,7 @@ const serializeProfile = (profile, req) => {
     delete profileObject.resume.data;
   }
 
-  if (profileObject.resume?.originalName) {
+  if (hasResumeAsset(profileObject.resume)) {
     profileObject.resume.url = buildResumeUrl(req);
   }
 
@@ -283,7 +303,7 @@ const uploadProfileFiles = async (req, res, next) => {
         deliveryType: "inline",
         mimeType: resume.mimetype,
         size: resume.size,
-        data: resume.buffer.toString("base64"),
+        data: Buffer.from(resume.buffer),
       };
     }
 
@@ -315,7 +335,7 @@ const deleteProfileAsset = async (req, res, next) => {
 
     const hasAsset =
       type === "resume"
-        ? Boolean(asset?.data || asset?.originalName || asset?.publicId)
+        ? hasResumeAsset(asset) || Boolean(asset?.publicId)
         : Boolean(asset?.publicId);
 
     if (!hasAsset) {
@@ -340,7 +360,7 @@ const deleteProfileAsset = async (req, res, next) => {
       deliveryType: "",
       mimeType: "",
       size: 0,
-      data: "",
+      data: undefined,
     };
 
     await profile.save();
@@ -359,8 +379,9 @@ const getResumeDownload = async (req, res, next) => {
   try {
     const profile = await getOrCreateProfile();
     const resume = profile.resume;
+    const buffer = readResumeBuffer(resume);
 
-    if (!resume?.data || !resume?.originalName) {
+    if (!buffer || !resume?.originalName) {
       return res.status(404).json({
         success: false,
         message: "Resume not found",
@@ -368,7 +389,6 @@ const getResumeDownload = async (req, res, next) => {
     }
 
     // Public asset — redirect directly to Cloudinary URL
-    const buffer = Buffer.from(resume.data, "base64");
     const safeFileName = (resume.originalName || "resume.pdf").replace(/"/g, "");
     const source = String(req.query.source || '').trim().slice(0, 80);
     const referrer = String(req.get('referer') || '').trim().slice(0, 300);
@@ -392,6 +412,7 @@ const getResumeDownload = async (req, res, next) => {
 
     res.setHeader("Content-Type", resume.mimeType || "application/pdf");
     res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
     res.setHeader(
       "Content-Disposition",
       `inline; filename="${safeFileName}"`,
